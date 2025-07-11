@@ -1,0 +1,7 @@
+pandas
+sqlalchemy
+pyodbc
+fuzzywuzzy
+python-Levenshtein
+flask
+flask-cors

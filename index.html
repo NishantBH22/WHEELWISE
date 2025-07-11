@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHEELWISE</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a202c;
+            font-family: 'Arial', sans-serif;
+            color: #e2e8f0;
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .table-header {
+            background-color: #2b6cb0;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .table-row:nth-child(even) {
+            background-color: #2d3748;
+        }
+        .table-row:hover {
+            background-color: #4a5568;
+        }
+        .textarea-dark {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            border-color: #4a5568;
+        }
+        .textarea-dark::placeholder {
+            color: #a0aec0;
+        }
+        .notification {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            color: #e2e8f0;
+            font-size: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            animation: fadeInOut 3s ease-in-out;
+        }
+        .notification.warning {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+        }
+        .notification.error {
+            background-color: #822727;
+            border: 1px solid #a31b1b;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        header, footer {
+            background-color: #0247AE; /* Matching logo color */
+        }
+        header img {
+            height: 40px; /* Adjust based on logo size */
+            vertical-align: middle;
+        }
+        footer p {
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+    <header class="bg-blue-900 p-6 shadow-lg text-white">
+        <img src="wheelwise-logo.png" alt="WHEELWISE Logo" class="inline-block">
+    </header>
+
+    <main class="container mx-auto px-4 py-8 flex-grow relative">
+        <div class="w-full max-w-5xl mx-auto bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-200">🔍 Enter Your Car Requirements</h2>
+            <textarea
+                id="carInput"
+                class="w-full textarea-dark border rounded-md p-2 mb-4"
+                rows="4"
+                placeholder=""
+            ></textarea>
+            <div class="flex space-x-4">
+                <button
+                    id="findCarsBtn"
+                    class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                >
+                    Find Cars
+                </button>
+                <button
+                    id="clearBtn"
+                    class="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                >
+                    Clear
+                </button>
+            </div>
+
+            <div id="resultsContainer" class="w-full mt-6">
+                <!-- Results will be dynamically inserted here -->
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-900 p-4 text-center">
+        <p class="text-sm">© 2025 WHEELWISE - Made by Nishant Bhatnagar</p>
+    </footer>
+
+    <script>
+        // Function to display notifications
+        function showNotification(message, type = 'warning') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Function to format values for display
+        function formatValue(value, type) {
+            if (value === null || value === undefined || value === '') return 'N/A';
+            if (type === 'msrp') return `$${parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+            if (type === 'matchscore') return parseFloat(value).toFixed(2);
+            return value.toString();
+        }
+
+        // Function to create the results table
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-red-400 text-lg">No matches found. Try refining your input.</p>';
+                showNotification('No matches found. Try refining your input.', 'warning');
+                return;
+            }
+
+            const title = document.createElement('h3');
+            title.className = 'text-xl font-bold mb-4 text-gray-200';
+            title.textContent = '🔝 Top Matches';
+            resultsContainer.appendChild(title);
+
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'table-container';
+            const table = document.createElement('table');
+            table.className = 'w-full text-left text-gray-200';
+
+            const headers = [
+                { name: 'make', label: 'Make' },
+                { name: 'model', label: 'Model' },
+                { name: 'year', label: 'Year' },
+                { name: 'enginefueltype', label: 'Fuel Type' },
+                { name: 'enginehp', label: 'HP' },
+                { name: 'transmissiontype', label: 'Transmission' },
+                { name: 'drivenwheels', label: 'Driven Wheels' },
+                { name: 'numberofdoors', label: 'Doors' },
+                { name: 'marketcategory', label: 'Market Category' },
+                { name: 'vehiclesize', label: 'Vehicle Size' },
+                { name: 'vehiclestyle', label: 'Vehicle Style' },
+                { name: 'highwaympg', label: 'Highway MPG' },
+                { name: 'citympg', label: 'City MPG' },
+                { name: 'popularity', label: 'Popularity' },
+                { name: 'msrp', label: 'MSRP' },
+                { name: 'matchscore', label: 'Match Score' }
+            ];
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'table-header';
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'p-2';
+                th.textContent = header.label;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'table-row';
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.className = 'p-2';
+                    let value = row[header.name];
+                    if (value === null || value === undefined || value === '') value = 'N/A';
+                    else if (['enginehp', 'numberofdoors', 'year', 'highwaympg', 'citympg', 'popularity', 'msrp', 'matchscore'].includes(header.name)) {
+                        value = formatValue(parseFloat(value), header.name);
+                    } else {
+                        value = formatValue(value, header.name);
+                    }
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            tableContainer.appendChild(table);
+            resultsContainer.appendChild(tableContainer);
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700';
+            downloadBtn.textContent = '📥 Download Results as CSV';
+            downloadBtn.addEventListener('click', () => downloadCSV(data, headers));
+            resultsContainer.appendChild(downloadBtn);
+        }
+
+        // Function to download results as CSV
+        function downloadCSV(data, headers) {
+            const csvRows = [];
+            const headerRow = headers.map(h => h.label).join(',');
+            csvRows.push(headerRow);
+
+            data.forEach(row => {
+                const rowData = headers.map(h => {
+                    let value = row[h.name];
+                    if (value === null || value === undefined || value === '') value = 'N/A';
+                    else if (['enginehp', 'numberofdoors', 'year', 'highwaympg', 'citympg', 'popularity', 'msrp'].includes(h.name)) {
+                        value = formatValue(parseFloat(value), h.name);
+                    } else {
+                        value = formatValue(value, h.name);
+                    }
+                    return `"${value}"`;
+                }).join(',');
+                csvRows.push(rowData);
+            });
+
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'car_matches.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Event listener for the Find Cars button
+        document.getElementById('findCarsBtn').addEventListener('click', async () => {
+            const input = document.getElementById('carInput').value.trim();
+            if (!input) {
+                showNotification('Please enter a valid car description.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/find-cars', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: input })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch results from server.');
+                }
+
+                const data = await response.json();
+                console.log('Received data:', JSON.stringify(data, null, 2));
+                displayResults(data);
+            } catch (error) {
+                showNotification(`Error: ${error.message}`, 'error');
+                document.getElementById('resultsContainer').innerHTML = `<p class="text-red-400 text-lg">Error: ${error.message}</p>`;
+            }
+        });
+
+        // Event listener for the Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('carInput').value = '';
+            document.getElementById('resultsContainer').innerHTML = '';
+            showNotification('Input cleared.', 'warning');
+        });
+    </script>
+</body>
+</html>
